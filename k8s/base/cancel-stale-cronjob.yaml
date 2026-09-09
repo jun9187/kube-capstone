@@ -18,7 +18,7 @@ spec:
           restartPolicy: Never
           containers:
             - name: cancel-stale
-              image: kube-capstone-worker:latest
+              image: hotel-booking-worker:latest
               imagePullPolicy: Never
               command: ["python", "cancel_stale.py"]
               envFrom:

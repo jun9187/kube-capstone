@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: kube-capstone-frontend:latest
+          image: hotel-booking-frontend:latest
           imagePullPolicy: Never
           ports:
             - containerPort: 80

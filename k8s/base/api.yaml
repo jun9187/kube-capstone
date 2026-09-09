@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: api
-          image: kube-capstone-api:latest
+          image: hotel-booking-api:latest
           imagePullPolicy: Never
           ports:
             - containerPort: 8000

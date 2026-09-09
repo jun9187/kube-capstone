@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: worker
-          image: kube-capstone-worker:latest
+          image: hotel-booking-worker:latest
           imagePullPolicy: Never
           ports:
             - containerPort: 8001

@@ -1,6 +1,7 @@
 services:
   frontend:
     build: ./frontend
+    image: hotel-booking-frontend:latest
     ports:
       - "8080:80"
     environment:
@@ -11,6 +12,7 @@ services:
 
   api:
     build: ./api
+    image: hotel-booking-api:latest
     ports:
       - "8000:8000"
     environment:
@@ -32,6 +34,7 @@ services:
 
   worker:
     build: ./worker
+    image: hotel-booking-worker:latest
     ports:
       - "8001:8001"
     environment:
@@ -52,6 +55,7 @@ services:
 
   cancel-stale:
     build: ./worker
+    image: hotel-booking-worker:latest
     command: ["python", "cancel_stale.py"]
     profiles: ["tools"]
     environment:
