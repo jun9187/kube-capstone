@@ -1,0 +1,91 @@
+services:
+  frontend:
+    build: ./frontend
+    ports:
+      - "8080:80"
+    environment:
+      API_HOST: api
+      API_PORT: "8000"
+    depends_on:
+      - api
+
+  api:
+    build: ./api
+    ports:
+      - "8000:8000"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: hotel
+      DB_USER: hotel
+      DB_PASSWORD: hotel
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      JWT_SECRET: dev-only-secret-change-me
+      JWT_EXPIRE_MINUTES: "60"
+      CACHE_TTL_SECONDS: "15"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build: ./worker
+    ports:
+      - "8001:8001"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: hotel
+      DB_USER: hotel
+      DB_PASSWORD: hotel
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      PROCESSING_DELAY_SECONDS: "2"
+      PAYMENT_FAILURE_RATE: "0.15"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  cancel-stale:
+    build: ./worker
+    command: ["python", "cancel_stale.py"]
+    profiles: ["tools"]
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: hotel
+      DB_USER: hotel
+      DB_PASSWORD: hotel
+      STALE_HOLD_MINUTES: "15"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: hotel
+      POSTGRES_USER: hotel
+      POSTGRES_PASSWORD: hotel
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hotel -d hotel"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:

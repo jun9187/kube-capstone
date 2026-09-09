@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+.env
+k8s/**/secrets.env

@@ -1,0 +1,39 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cancel-stale-bookings
+spec:
+  schedule: "*/15 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            app: cancel-stale
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: cancel-stale
+              image: kube-capstone-worker:latest
+              imagePullPolicy: Never
+              command: ["python", "cancel_stale.py"]
+              envFrom:
+                - configMapRef:
+                    name: hotel-config
+              env:
+                - name: DB_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: hotel-secrets
+                      key: DB_PASSWORD
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  cpu: 200m
+                  memory: 128Mi
