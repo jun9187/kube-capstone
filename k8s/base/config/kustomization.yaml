@@ -1,0 +1,16 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+configMapGenerator:
+- literals:
+  - DB_HOST=postgres
+  - DB_PORT=5432
+  - DB_NAME=hotel
+  - DB_USER=hotel
+  - REDIS_HOST=redis
+  - REDIS_PORT=6379
+  name: shared-config
+secretGenerator:
+- envs:
+  - secrets.env
+  name: db-credentials
+  type: Opaque

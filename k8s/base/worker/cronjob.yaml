@@ -23,17 +23,12 @@ spec:
               command: ["python", "cancel_stale.py"]
               envFrom:
                 - configMapRef:
-                    name: hotel-config
+                    name: shared-config
+                - configMapRef:
+                    name: worker-config
               env:
                 - name: DB_PASSWORD
                   valueFrom:
                     secretKeyRef:
-                      name: hotel-secrets
+                      name: db-credentials
                       key: DB_PASSWORD
-              resources:
-                requests:
-                  cpu: 50m
-                  memory: 64Mi
-                limits:
-                  cpu: 200m
-                  memory: 128Mi
