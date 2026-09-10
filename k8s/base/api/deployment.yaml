@@ -17,7 +17,7 @@ spec:
       containers:
       - name: api
         image: hotel-booking-api:latest
-        imagePullPolicy: Never
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8000
         envFrom:

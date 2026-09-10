@@ -19,7 +19,7 @@ spec:
           containers:
             - name: cancel-stale
               image: hotel-booking-worker:latest
-              imagePullPolicy: Never
+              imagePullPolicy: IfNotPresent
               command: ["python", "cancel_stale.py"]
               envFrom:
                 - configMapRef:

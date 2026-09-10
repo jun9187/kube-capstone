@@ -59,18 +59,19 @@ here is actually a 3-node **kind** cluster (`desktop-control-plane`,
 `desktop-worker`, `desktop-worker2`), not single-node Docker Desktop
 Kubernetes. Locally built images are **not** automatically visible to it —
 each kind node has its own containerd image store, separate from the
-`docker build` image cache. After building/rebuilding an image, load it onto
-both worker nodes before applying manifests:
+`docker build` image cache. This mattered a lot before CI/CD existed (see
+`docs/k8s-progress.md` for the `docker save | ctr images import` workaround
+used at the time) — now that images are pulled from Docker Hub (below),
+that workaround is no longer needed for anything CI builds and pushes.
 
-```bash
-for node in desktop-worker desktop-worker2; do
-  docker save <image>:<tag> | docker exec -i "$node" ctr -n k8s.io images import -
-done
-```
-
-Manifests use `imagePullPolicy: Never` against these locally-loaded images
-for now. Once GHA CI is wired up, this switches to pulling tagged images
-from Docker Hub instead.
+CI/CD is wired up (`.github/workflows/build-push.yml`): every push to `main`
+touching `api/`, `worker/`, or `frontend/` builds and pushes all 3 images to
+Docker Hub tagged by commit SHA, then a second job bumps the tag in
+`k8s/base/kustomization.yaml`'s `images:` transformer and commits that back
+to `main` automatically (as `github-actions[bot]`). `imagePullPolicy` is
+`IfNotPresent` everywhere now, referencing `jun9187/hotel-booking-*` — no
+local image loading needed for anything built through this pipeline. `git
+pull` then `kubectl apply -k` picks up whatever the bot last committed.
 
 ## Registries
 
@@ -81,13 +82,14 @@ from Docker Hub instead.
   `150773849+jun9187@users.noreply.github.com` so commits attribute
   correctly without touching global config.
   - `gh auth` has both accounts; `jun9187` should be active for this repo.
-  - The `jun9187` token currently lacks the `workflow` OAuth scope — needed
-    before pushing any `.github/workflows/*.yml` file. Run
-    `gh auth refresh -h github.com -s workflow` first.
+    Its token has the `workflow` scope (added via `gh auth refresh -h
+    github.com -s workflow`), needed for pushing `.github/workflows/*.yml`.
 - **Docker Hub**: images pushed as `jun9187/hotel-booking-api`,
   `jun9187/hotel-booking-worker`, `jun9187/hotel-booking-frontend`, each
   public, tagged by git commit SHA (not just `:latest` — Kubernetes/ArgoCD
   only trigger a rollout when the image tag string actually changes).
+  Credentials for CI are stored as GitHub Actions repo secrets
+  (`DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`) — never in any committed file.
 
 ## Conventions / things to not re-litigate
 

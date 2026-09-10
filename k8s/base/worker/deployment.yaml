@@ -17,7 +17,7 @@ spec:
       containers:
       - name: worker
         image: hotel-booking-worker:latest
-        imagePullPolicy: Never
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8001
         envFrom:

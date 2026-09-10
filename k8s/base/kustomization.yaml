@@ -7,3 +7,14 @@ resources:
 - networkpolicy
 - redis
 - worker
+
+images:
+- name: hotel-booking-api
+  newName: jun9187/hotel-booking-api
+  newTag: 61e1f49
+- name: hotel-booking-worker
+  newName: jun9187/hotel-booking-worker
+  newTag: 61e1f49
+- name: hotel-booking-frontend
+  newName: jun9187/hotel-booking-frontend
+  newTag: 61e1f49
