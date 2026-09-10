@@ -10,8 +10,7 @@ configMapGenerator:
   - REDIS_HOST=redis
   - REDIS_PORT=6379
   name: shared-config
-secretGenerator:
-- envs:
-  - secrets.env
-  name: db-credentials
-  type: Opaque
+
+# db-credentials Secret is NOT managed here — it's created manually,
+# directly in-cluster, in each namespace (hotel-dev, hotel-staging).
+# See docs/k8s-progress.md for why (GitOps + secrets stopgap).

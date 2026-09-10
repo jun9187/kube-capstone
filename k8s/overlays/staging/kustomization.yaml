@@ -16,11 +16,9 @@ configMapGenerator:
       - DB_USER=postgres.csrchajfnyjvgkwvtbuj
       - DB_NAME=postgres
 
-secretGenerator:
-  - name: db-credentials
-    behavior: merge
-    envs:
-      - secrets.env
+# db-credentials and api-secrets Secrets are NOT managed here — created
+# manually, directly in-cluster, in the hotel-staging namespace.
+# See docs/k8s-progress.md for why (GitOps + secrets stopgap).
 
 patches:
   - target:

@@ -10,7 +10,6 @@ configMapGenerator:
   - JWT_EXPIRE_MINUTES=60
   - CACHE_TTL_SECONDS=15
 
-secretGenerator:
-- name: api-secrets
-  envs:
-  - secrets.env
+# api-secrets Secret is NOT managed here — it's created manually,
+# directly in-cluster, in each namespace (hotel-dev, hotel-staging).
+# See docs/k8s-progress.md for why (GitOps + secrets stopgap).

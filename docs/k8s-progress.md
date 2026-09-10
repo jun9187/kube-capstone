@@ -215,22 +215,121 @@ given the point of this project is to demonstrate disciplined practice.
       per env, `postgres` Component included only in `dev` (see database
       strategy decision above), staging/prod ConfigMap+Secret patches
       pointing at their Supabase project instead
-- [ ] GitHub Actions CI: build + push to Docker Hub tagged by commit SHA,
-      write the new tag back into the k8s manifests
-  - Blocker to fix first: the `jun9187` gh token lacks the `workflow`
-    scope, needed before `git push` will accept a new
-    `.github/workflows/*.yml` file — run
-    `gh auth refresh -h github.com -s workflow`
-- [ ] ArgoCD: one Application per environment, auto-sync + selfHeal
-- [ ] Sealed Secrets: install the controller, `kubeseal` each of
-      `k8s/base/config/secrets.env`, `overlays/staging/secrets.env`,
-      `overlays/prod/secrets.env` into committable `SealedSecret` resources
-      (see "GitOps secrets problem" decision above) — needed before ArgoCD
-      can actually deploy any environment, since it can't read the
-      gitignored plain `secrets.env` files
+- [x] GitHub Actions CI: build + push to Docker Hub tagged by commit SHA,
+      write the new tag back into the k8s manifests (see 2026-09-10 entry)
+- [x] ArgoCD installed; `Application` manifests for dev/staging written
+      (see 2026-09-10 entry) — not yet synced live
+- [ ] Sealed Secrets / Reloader: on hold, see 2026-09-10 decision below —
+      current secrets approach is a manual stopgap, not real GitOps
+- [ ] `prod/` overlay — same shape as `staging/`, separate Supabase project
 - [ ] Helm: `kube-prometheus-stack` for monitoring, as a plain ArgoCD Helm
       source (deliberately *not* inflating it through Kustomize —
       considered `kustomize.buildOptions: --enable-helm` and decided the
       added repo-server complexity wasn't worth it for this project)
 - [ ] Ingress + cert-manager for staging/prod (replacing NodePort), also a
-      better demo than raw NodePorts
+      better demo than raw NodePorts — blocked on this specific kind
+      cluster only having port 6443 mapped to the host (see 2026-09-10
+      entry); would need cluster recreation to fix properly, which isn't
+      worth the disruption right now
+
+## 2026-09-10 — CI/CD, ArgoCD, and the secrets-in-GitOps stopgap
+
+### CI/CD pipeline
+
+`.github/workflows/build-push.yml`, two jobs:
+- `build-and-push` — matrix builds api/worker/frontend, pushes each to
+  Docker Hub tagged by commit SHA and `:latest`
+- `update-manifests` (needs the above) — installs `kustomize`, runs
+  `kustomize edit set image` to bump all 3 tags in
+  `k8s/base/kustomization.yaml`'s `images:` transformer, commits the
+  change back to `main` as `github-actions[bot]`
+
+Switched `api`/`worker`/`frontend` from local-only images
+(`imagePullPolicy: Never`, loaded via the `ctr images import` workaround)
+to Docker Hub (`jun9187/hotel-booking-*`, `imagePullPolicy: IfNotPresent`).
+Verified live: applied to `hotel-dev`, new pods pulled from Docker Hub over
+the real network and came up healthy — the local image-loading workaround
+is no longer needed for anything built through this pipeline.
+
+Prerequisite fixed: `jun9187` gh token was missing the `workflow` scope,
+needed before `git push` accepts `.github/workflows/*.yml` — fixed via
+`gh auth refresh -h github.com -s workflow`.
+
+### ArgoCD
+
+Installed via the official stable manifests into an `argocd` namespace.
+One real install snag: `kubectl apply` failed on the `applicationsets`
+CRD (`metadata.annotations: Too long`) — a known issue with very large
+CRDs and client-side apply's last-applied-config annotation. Fixed with
+`kubectl apply --server-side --force-conflicts` instead.
+
+Wrote `argocd/applications/dev.yaml` and `argocd/applications/staging.yaml`
+— each points at this repo's `k8s/overlays/{dev,staging}`, destination
+namespace `hotel-{dev,staging}`, `automated: {prune: true, selfHeal: true}`.
+Not yet applied/synced — see the secrets blocker below.
+
+### Decision: secrets-in-GitOps stopgap (Sealed Secrets put on hold)
+
+Confirmed the anticipated problem is real: `k8s/overlays/{dev,staging}`
+and `k8s/base/{config,api}` all had `secretGenerator`s reading gitignored
+`secrets.env` files. ArgoCD's repo-server checks out a clean clone from
+GitHub — those files were never pushed, so `kustomize build` would fail
+before ever reaching the cluster.
+
+Started implementing Sealed Secrets (installed the controller + `kubeseal`
+CLI, both still installed and running) but paused partway through — the
+`secretGenerator` → `SealedSecret` conversion turned out to give up the
+content-hash-suffix mechanism (Kustomize hashes plaintext at build time;
+a `SealedSecret`'s whole point is the plaintext is never present in
+anything git-tracked, so those two properties are mutually exclusive).
+The real fix for that gap is a separate controller — Stakater's Reloader,
+which watches the *decrypted* Secret object directly and patches a
+rollout-triggering annotation itself, independent of Kustomize. Not
+implemented yet — parked for later.
+
+**Interim decision: manual stopgap, chosen deliberately over finishing
+Sealed Secrets right now.** Removed the `secretGenerator` blocks from
+`base/config`, `base/api`, and `overlays/staging` entirely (nothing left
+in git referencing the gitignored files), and created the real
+`db-credentials`/`api-secrets` Secrets directly in-cluster by hand
+(`kubectl create secret`, values read from the existing local
+`secrets.env` files, never typed inline) in both `hotel-dev` and
+`hotel-staging`. Since these Secrets are now never part of what Kustomize
+renders, ArgoCD's prune/sync logic simply never sees or touches them —
+no special "ignore this resource" config needed on ArgoCD's side, that
+falls out automatically from removing them from git.
+
+Known limitation, accepted deliberately: **this is not real GitOps for
+secrets** — if either namespace/cluster were ever rebuilt from scratch,
+these two Secrets would need recreating by hand again, with no record in
+git of that step. Revisit with Sealed Secrets + Reloader once that's
+worth prioritizing again.
+
+**Bonus: this stopgap fixed a real, independently-discovered bug.**
+`overlays/staging/kustomization.yaml`'s old `secretGenerator` only had a
+`behavior: merge` entry for `db-credentials` — never one for `api-secrets`.
+Result: staging's `api` Deployment was silently signing/verifying JWTs
+with **dev's** `JWT_SECRET`, not the fresh one generated specifically for
+staging (which sat unused as an orphaned key inside `db-credentials`
+instead). Confirmed by decoding both values against the live rendered
+manifest. Manually creating staging's `api-secrets` Secret directly fixed
+this correctly — verified afterward that the live Secret's `JWT_SECRET`
+matches staging's own generated value, not dev's.
+
+### Discovery: this kind cluster can't do real Ingress either
+
+Before deciding to defer Ingress+TLS: checked whether this kind cluster
+was created with the `extraPortMappings` (host 80/443 → node) that
+`ingress-nginx`-on-kind normally needs. It wasn't — `docker port
+desktop-control-plane` shows only `6443` (the API server) mapped to the
+host. That mapping is baked in at cluster-creation time and can't be
+added retroactively. Also couldn't find the original kind config
+anywhere on disk, and this cluster's kubectl context (`docker-desktop`)
+doesn't match the name a plain `kind create cluster --name desktop` would
+produce (`kind-desktop`) — something set this cluster up in a way whose
+exact provenance isn't fully known. Decided against recreating the
+cluster to fix this, given the disruption (every namespace, every loaded
+image, would need redoing) versus the uncertainty of cleanly reproducing
+the current setup. Ingress, when built, will be validated via
+`port-forward` instead of real browser-from-Windows reachability — same
+honest limitation already accepted for NodePort earlier.
