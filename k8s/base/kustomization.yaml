@@ -11,10 +11,10 @@ resources:
 images:
 - name: hotel-booking-api
   newName: jun9187/hotel-booking-api
-  newTag: 61e1f49
-- name: hotel-booking-worker
-  newName: jun9187/hotel-booking-worker
-  newTag: 61e1f49
+  newTag: 6acd86fc4f9c7de64bc797c0694fbec308390305
 - name: hotel-booking-frontend
   newName: jun9187/hotel-booking-frontend
-  newTag: 61e1f49
+  newTag: 6acd86fc4f9c7de64bc797c0694fbec308390305
+- name: hotel-booking-worker
+  newName: jun9187/hotel-booking-worker
+  newTag: 6acd86fc4f9c7de64bc797c0694fbec308390305
