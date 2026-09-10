@@ -21,6 +21,7 @@ DB_PORT = os.environ.get("DB_PORT", "5432")
 DB_NAME = os.environ.get("DB_NAME", "hotel")
 DB_USER = os.environ.get("DB_USER", "hotel")
 DB_PASSWORD = os.environ.get("DB_PASSWORD", "hotel")
+DB_SSLMODE = os.environ.get("DB_SSLMODE", "disable")
 
 REDIS_HOST = os.environ.get("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.environ.get("REDIS_PORT", "6379"))
@@ -44,12 +45,13 @@ def get_db_connection():
         dbname=DB_NAME,
         user=DB_USER,
         password=DB_PASSWORD,
+        sslmode=DB_SSLMODE,
         connect_timeout=3,
     )
 
 
 def get_redis_client() -> redis.Redis:
-    return redis.Redis(host=REDIS_HOST, port=REDIS_PORT, socket_timeout=3)
+    return redis.Redis(host=REDIS_HOST, port=REDIS_PORT, socket_timeout=10)
 
 
 def process_job(booking_id: int):

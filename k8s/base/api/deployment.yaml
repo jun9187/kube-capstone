@@ -42,6 +42,7 @@ spec:
             port: 8000
           initialDelaySeconds: 5
           periodSeconds: 10
+          timeoutSeconds: 5
           failureThreshold: 6
         livenessProbe:
           httpGet:

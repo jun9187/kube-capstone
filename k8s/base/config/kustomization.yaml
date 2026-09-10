@@ -6,6 +6,7 @@ configMapGenerator:
   - DB_PORT=5432
   - DB_NAME=hotel
   - DB_USER=hotel
+  - DB_SSLMODE=disable
   - REDIS_HOST=redis
   - REDIS_PORT=6379
   name: shared-config

@@ -11,6 +11,7 @@ DB_PORT = os.environ.get("DB_PORT", "5432")
 DB_NAME = os.environ.get("DB_NAME", "hotel")
 DB_USER = os.environ.get("DB_USER", "hotel")
 DB_PASSWORD = os.environ.get("DB_PASSWORD", "hotel")
+DB_SSLMODE = os.environ.get("DB_SSLMODE", "disable")
 
 STALE_HOLD_MINUTES = int(os.environ.get("STALE_HOLD_MINUTES", "15"))
 
@@ -18,7 +19,7 @@ STALE_HOLD_MINUTES = int(os.environ.get("STALE_HOLD_MINUTES", "15"))
 def main():
     conn = psycopg2.connect(
         host=DB_HOST, port=DB_PORT, dbname=DB_NAME, user=DB_USER, password=DB_PASSWORD,
-        connect_timeout=5,
+        sslmode=DB_SSLMODE, connect_timeout=5,
     )
     try:
         with conn, conn.cursor() as cur:
